@@ -9,8 +9,9 @@ naïve agent would be Monte-Carlo Tree Search (and similarly POMCP) which can
 search through arbitrary action spaces, while an example of an informed agent
 would be a rule-based card counter.
 
-We will start by describing the module from a high level with regards to naïve
-agents, then extend our discussion to include details for informed agents.
+We describing the module from a high level with regards to naïve agents, then
+extend our discussion to the rules of Blackjack which may be (ab)used by
+informed agents.
 
 ## Overview
 
@@ -20,36 +21,28 @@ agents. A simulator executes a dealer agent and one or more player agents over
 an arbitrary number of rounds and provides statistics about the outcomes.
 
 An agent is any callable object that takes two arguments, an `Observation` and
-a `Context`, and returns an `Action` indicating the next action to perform. If
+a context, and returns an `Action` indicating the next action to perform. If
 you wish to implement your agent as a class, you should derive from the `Agent`
-base class and implement your policy by overriding `Agent.policy`.
+base class and implement your policy by overriding `Agent.policy(obs, ctx)`.
 
-`Context` objects are mutable dict-like collections. The same context is passed
-to the pollicy function every time it is called during the same episode,
-allowing agents to persist episode-level data.
+The context passed to an agent is an initially empty dict. The simulator never
+mutates the context, and the same context is passed to the agent every time it
+is called during the same round, allowing agents to persist round-level data.
 
 `Observation` objects capture the knowledge of the world available to the agent
-and allow the agent to sample from the space of possible future observations
-given some action. The `Observation.actions` method returns a list of valid
-actions, and the `Observation.sample` method samples a new observation from the
-space of possible future states given some action. The method
-`Observation.score` gives a score to the observation.
+and allow the agent to sample from the space of possible future observations.
+The `Observation.actions()` method returns a list of valid actions, and the
+`Observation.sample(action)` method samples a new future observation given some
+action. The method `Observation.score()` gives a score to the observation.
+Naïve agents may sample and score an observation, but should otherwise treat
+them as opaque.
 
 `Action` objects represent the actions available to the agents. Naïve agents
 will treat these as opaque vales.
 
-## Informed agents
+## Rules of Blackjack
 
-TODO: describe the details which may be used by informed agents.
-
-- What are the actions?
-- What is the score? (A: the value of the agent's hand.)
-- What are `Shoe` objects?
-- What is the cut?
-
-## The Rule of Blackjack
-
-TODO: write this section
+TODO: write this up
 '''
 
 from copy import copy, deepcopy
@@ -61,7 +54,13 @@ import logging
 logger = logging.getLogger(__name__)
 
 class Action(Enum):
-    '''The possible actions in a game of Blackjack.'''
+    '''The possible actions in a game of Blackjack.
+
+    Enum:
+        STAND: Perform no more actions this round.
+        HIT: Draw another card.
+        DOUBLE: Double your bet, hit, then stand.
+    '''
     STAND = 1
     HIT = 2
     DOUBLE = 3
@@ -147,7 +146,7 @@ class State:
 
     def score(self, agent):
         '''Returns the score of an agent's hand.'''
-        score, _ = self._score(agent)
+        score, _ = self.score_soft(agent)
         return score
 
     def busted(self, agent):
@@ -156,17 +155,17 @@ class State:
 
     def soft(self, agent):
         '''Returns True if the agent's score is soft, i.e. made with an ace as 11.'''
-        _, soft = self._score(agent)
+        _, soft = self.score_soft(agent)
         return soft
 
-    def _score(self, agent):
+    def score_soft(self, agent):
         '''Computes the score and softness of an agent's hand.
 
         The score is the value of the hand. A hand is soft if it contains an
         ace being scored as an 11.
 
         The return value is a pair `(score, soft)` where `score` is the value
-        of the hand and `soft` is a boolean which is True on soft hands.
+        of the hand and `soft` is a boolean which is True for soft scores.
         '''
         aces = 0
         score = 0
@@ -248,6 +247,14 @@ class Agent:
 
 class Simulator:
     def __init__(self, *players, dealer, n_decks=2, cut=0.5):
+        '''Constructs a new Simulator.
+
+        Args:
+            *players: The agents for each player.
+            dealer: The agent for the dealer.
+            n_decks: The number of decks to play with.
+            cut: Reshuffle the deck when it's size is below this percent.
+        '''
         assert len(players) > 0, 'must have at least one player policy'
         assert 0 <= cut and cut < 1, 'cut must be between 0 and 1'
         self.dealer = dealer if isinstance(dealer, Agent) else Agent.from_fn(dealer)
@@ -257,6 +264,7 @@ class Simulator:
         self.cut = cut
 
     def run(self, n_rounds):
+        '''Execute the simulation for some number of rounds and return a summary.'''
         # The order of play is given by the order of the players, followed by the dealer.
         players = self.players + (self.dealer,)
 
