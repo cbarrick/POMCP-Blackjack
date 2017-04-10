@@ -47,9 +47,11 @@ TODO: write this up
 
 from copy import copy, deepcopy
 from enum import Enum
-from random import randrange
+import random
 import numpy as np
 import logging
+
+from agents import dealer_agent
 
 logger = logging.getLogger(__name__)
 
@@ -86,9 +88,9 @@ class Shoe:
     def draw(self):
         '''Draw a random card from the shoe.'''
         assert len(self) > 0, 'cannot draw from an empty shoe.'
-        card = randrange(1,14)
+        card = random.randrange(1,14)
         while self.counts[card] == 0:
-            card = randrange(1,14)
+            card = random.randrange(1,14)
         self.counts[card] -= 1
         return card
 
@@ -230,6 +232,13 @@ class Observation:
         '''Returns True if the agent's score is soft, i.e. made with an ace as 11.'''
         return self._state.soft(self.agent)
 
+    def score_soft(self):
+        '''Returns `(score, soft)` where
+            - `score` is the score of the agents hand, and
+            - `soft` is True if the score is soft.
+        '''
+        return self._state.score_soft(self.agent)
+
 class Agent:
     '''A base class for agents.'''
 
@@ -245,8 +254,27 @@ class Agent:
         '''Agents can be called just like plain policy functions.'''
         return self.policy(obs, ctx)
 
+class RandomAgent(Agent):
+    '''An agent which behaves randomly.'''
+    def policy(self, obs, ctx):
+        return random.choice(obs.actions())
+
+class DealerAgent(Agent):
+    '''An agent which plays like a casino dealer.'''
+
+    def __init__(self, n=17):
+        self.n = n
+
+    def policy(self, obs, ctx):
+        score, soft = obs.score_soft()
+        if self.n < score:
+            return Action.HIT
+        elif soft and score == self.n:
+            return Action.HIT
+        return Action.STAND
+
 class Simulator:
-    def __init__(self, *players, dealer, n_decks=2, cut=0.5):
+    def __init__(self, *players, dealer=DealerAgent(), n_decks=2, cut=0.5):
         '''Constructs a new Simulator.
 
         Args:
@@ -308,8 +336,3 @@ class Simulator:
                 wins[i,j] = True
 
         return wins
-
-def random_agent(obs, ctx):
-    '''An agent which behaves randomly.'''
-    import random
-    return random.choice(obs.actions())
