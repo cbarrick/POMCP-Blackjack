@@ -15,4 +15,4 @@ class POMCP:
         if !bool(ctx):
             state = blackjack.Simulator.run()
         else:
-            state = ctx
+            state
