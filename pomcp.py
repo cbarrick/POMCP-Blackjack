@@ -1,18 +1,31 @@
 import numpy
 import blackjack
 
-
 class POMCP:
+    def __init__(self, agent, gamma, depth=0, epsilon):
+        agent =
 
-    def return_action(state, ctx):
+    def SearchSpace(ctx):
+        while True:
+            try:
+                state = Belief(ctx)
 
-    def simulate():
 
-    def search(ctx):
-        for i in range(1:n_rounds):
+            except:
+                TimeOutError
+                break
 
-    def belief_state(ctx, ):
-        if !bool(ctx):
-            state = blackjack.Simulator.run()
-        else:
-            state
+    def Rollout(state, ctx, depth):
+        if gamma**depth < epsilon:
+            return 0
+        action = blackjack.DealerAgent.policy(obs, ctx)
+        nextstate, obs, reward = blackjack.State(agent, action)
+    def Simulate(state, ctx, depth):
+        if gamma**depth < epsilon:
+            return 0
+        if ctx not in tree:
+            
+
+    def Belief(ctx):
+
+if __name__ == '__main__':
