@@ -2,14 +2,18 @@ import numpy
 import blackjack
 
 class POMCP:
-    def __init__(self, agent, gamma, depth=0, epsilon):
+    def __init__(self,
+                 agent,
+                 gamma,
+                 depth=0,
+                 epsilon,
+                 ):
         agent =
 
-    def SearchSpace(ctx):
+    def Search(ctx):
         while True:
             try:
                 state = Belief(ctx)
-
 
             except:
                 TimeOutError
@@ -24,8 +28,10 @@ class POMCP:
         if gamma**depth < epsilon:
             return 0
         if ctx not in tree:
-            
+
 
     def Belief(ctx):
+        if not ctx:
+            set
 
 if __name__ == '__main__':
