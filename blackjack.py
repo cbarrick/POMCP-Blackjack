@@ -250,6 +250,9 @@ class Agent:
         agent.policy = policy
         return agent
 
+    def policy(self, obs, ctx):
+        raise NotImplementedError
+
     def __call__(self, obs, ctx):
         '''Agents can be called just like plain policy functions.'''
         return self.policy(obs, ctx)
