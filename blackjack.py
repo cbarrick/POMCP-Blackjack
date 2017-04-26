@@ -71,34 +71,51 @@ class Action(Enum):
 class Shoe:
     '''A shuffled collection of French playing cards.'''
 
+    _INDICIES = np.arange(13)
+
     def __init__(self, n_decks):
         '''Create a full Shoe with some number of decks of cards.'''
         assert n_decks > 0, '`n_decks` must be greater than 0.'
         self.n_decks = n_decks
-        self.counts = {card_face: 4*n_decks for card_face in range(1,14)}
+        self.counts = np.zeros(13, dtype=int) + 4*n_decks
 
     def __len__(self):
         '''The length of a shoe is the number of cards.'''
-        return sum(v for v in self.counts.values())
+        return np.sum(self.counts)
 
     def reshuffle(self):
         '''Refill and shuffle the shoe.'''
         self.__init__(self.n_decks)
 
+    def sample(self):
+        assert len(self) > 0, 'cannot sample from an empty shoe.'
+        i = np.random.choice(shoe._INDICIES, p=self.counts/np.sum(self.counts))
+        return i + 1
+
     def draw(self):
         '''Draw a random card from the shoe.'''
-        assert len(self) > 0, 'cannot draw from an empty shoe.'
-        card = random.randrange(1,14)
-        while self.counts[card] == 0:
-            card = random.randrange(1,14)
-        self.counts[card] -= 1
+        card = self.sample()
+        i = card - 1
+        self.counts[i] -= 1
         return card
 
     def replace(self, card):
+<<<<<<< Updated upstream
         '''Raplace a card back into the shoe at a random position.'''
         count = self.counts[card]
+=======
+        '''Replace a card back into the shoe at a random position.'''
+        i = card - 1
+        count = self.counts[i]
+>>>>>>> Stashed changes
         assert count <= 4 * self.n_decks, f'cannot have more than {count} cards of value {card}.'
-        self.counts[card] = count + 1
+        self.counts[i] = count + 1
+
+    def take(self, card):
+        i = card - 1
+        assert self.counts[i] > 0, 'cannot take card {card} with count {self.counts[0]}'
+        self.counts[i] -= 1
+        return i + 1
 
 class State:
     '''A state of a round of Blackjack.'''
@@ -214,11 +231,18 @@ class Observation:
         '''Returns a set of valid actions.'''
         return self._state.actions(self.agent)
 
-    def sample(self, action):
-        '''Samples a new observation from this one given some action.'''
+    def sample(self, hidden_belief, action):
+        '''Samples a new observation from this one given some belief about the
+        hidden card and an action.
+        '''
         obs = copy(self)
+        obs._state.shoe.take(hidden_belief)
         obs._state = self._state.sample(self.agent, action)
+        obs._state.shoe.replace(hidden_belief)
         return obs
+
+    def sample_belief(self):
+        return obs._state.shoe.sample()
 
     def score(self):
         '''Returns the score of the agent's hand.'''
