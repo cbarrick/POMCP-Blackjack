@@ -3,21 +3,13 @@ from blackjack import Agent, Action, DealerAgent
 import random
 import math
 
-'''
-POMCP algorithm
-
-
-'''
-
-
 
 class POMCP(Agent):
-    '''
-    POMCP algorithm
+    '''POMCP algorithm
 
     SearchTree = class for maintaining search
-
     '''
+
     def __init__(self, discount, depth=0, epsilon=1e-7, explore=0):
         self.discount = discount
         self.depth = depth
@@ -25,19 +17,16 @@ class POMCP(Agent):
         self.explore = explore
         self.rollout_policy = DealerAgent()
 
-
     def policy(self, obs, ctx):
-        '''Search '''
         tree = ctx.get('pomcp_root')
         if tree is None:
-            tree = SearchTree(belief = {obs.sample_belief()})
+            tree = SearchTree(belief={obs.sample_belief()})
             ctx['pomcp_root'] = tree
         s = random.sample(tree.belief, 1)[0]
         self.simulate(s, tree, 0)
-        child = max(tree.children, key= lambda child: child.value)
+        child = max(tree.children, key=lambda child: child.value)
         ctx['pomcp_root'] = child
         return child.action
-
 
     def simulate(self, obs, s, tree, depth):
         if self.discount**depth < epsilon:
@@ -45,18 +34,17 @@ class POMCP(Agent):
         if len(tree.children) == 0:
             tree.expand(ob, s)
             return self.rollout(obs, s, depth)
-        child = max(tree.children, key = lambda child: child.value + self.explore * tree.ucb(child))
+        child = max(tree.children, key=lambda child: child.value + self.explore * tree.ucb(child))
         action = child.action
 
         new_obs = obs.sample(s, action)
         new_s = new_obs.sample_belief()
-        reward = new_obs.score() + self.discount * simulate(new_obs, new_s, child, depth+1)
+        reward = new_obs.score() + self.discount * simulate(new_obs, new_s, child, depth + 1)
         tree.belief.add(s)
         tree.visit += 1
         child.visit += 1
-        child.value += (reward - child.value)/child.visit
+        child.value += (reward - child.value) / child.visit
         return reward
-
 
     def rollout(self, obs, s, depth):
         if discount**depth < epsilon:
@@ -64,7 +52,7 @@ class POMCP(Agent):
         action = self.rollout_policy(obs)
         new_obs = obs.sample(s, action)
         new_s = new_obs.sample_belief()
-        return new_obs.score + self.discount*self.rollout(new_obs, new_s, depth+1)
+        return new_obs.score + self.discount * self.rollout(new_obs, new_s, depth + 1)
 
 
 class SearchTree:
@@ -80,4 +68,4 @@ class SearchTree:
             self.children.add(SearchTree(action=a))
 
     def ucb(self, child):
-        return math.sqrt(math.log(self.visit, len(children))/child.visit)
+        return math.sqrt(math.log(self.visit, len(children)) / child.visit)
