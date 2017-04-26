@@ -47,9 +47,10 @@ TODO: write this up
 
 from copy import copy, deepcopy
 from enum import Enum
-import random
-import numpy as np
 import logging
+import numpy as np
+import pandas as pd
+import random
 
 logger = logging.getLogger(__name__)
 
@@ -286,6 +287,9 @@ class DealerAgent(Agent):
     def __init__(self, n=17):
         self.n = n
 
+    def __str__(self):
+        return f"Dealer {self.n}"
+
     def policy(self, obs, ctx):
         score, soft = obs.score_soft()
         if self.n < score:
@@ -356,4 +360,4 @@ class Simulator:
                 j = players.index(agent)
                 wins[i,j] = True
 
-        return wins
+        return pd.DataFrame(wins, columns=[str(player) for player in players])

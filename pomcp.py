@@ -17,6 +17,9 @@ class POMCP(Agent):
         self.explore = explore
         self.rollout_policy = DealerAgent()
 
+    def __str__(self):
+        return "POMCP"
+
     def policy(self, obs, ctx):
         tree = ctx.get('pomcp_root')
         if tree is None:
