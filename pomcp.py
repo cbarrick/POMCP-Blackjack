@@ -10,7 +10,7 @@ class POMCP(Agent):
     SearchTree = class for maintaining search
     '''
 
-    def __init__(self, discount, depth=0, epsilon=1e-7, explore=0):
+    def __init__(self, discount=0.9, depth=0, epsilon=1e-7, explore=0):
         self.discount = discount
         self.depth = depth
         self.epsilon = epsilon
@@ -22,19 +22,26 @@ class POMCP(Agent):
         if tree is None:
             tree = SearchTree(belief={obs.sample_belief()})
             ctx['pomcp_root'] = tree
+        if len(tree.belief) == 0:
+            tree.belief.add(obs.sample_belief())
         s = random.sample(tree.belief, 1)[0]
-        self.simulate(s, tree, 0)
-        child = max(tree.children, key=lambda child: child.value)
+        self.simulate(obs, s, tree, 0)
+        actions = obs.actions()
+
+        children = filter(lambda child: child.action in actions, tree.children)
+        child = max(children, key=lambda child: child.value)
         ctx['pomcp_root'] = child
         return child.action
 
     def simulate(self, obs, s, tree, depth):
-        if self.discount**depth < epsilon:
+        if self.discount**depth < self.epsilon:
             return 0
         if len(tree.children) == 0:
-            tree.expand(ob, s)
+            tree.expand(obs, s)
             return self.rollout(obs, s, depth)
-        child = max(tree.children, key=lambda child: child.value + self.explore * tree.ucb(child))
+        actions = obs.actions()
+        children = filter(lambda child: child.action in actions, tree.children)
+        child = max(children, key=lambda child: child.value + self.explore * tree.ucb(child))
         action = child.action
 
         new_obs = obs.sample(s, action)
@@ -47,16 +54,18 @@ class POMCP(Agent):
         return reward
 
     def rollout(self, obs, s, depth):
-        if discount**depth < epsilon:
+        if self.discount**depth < self.epsilon:
             return 0
-        action = self.rollout_policy(obs)
+        if len(obs.actions()) == 0:
+            return 0
+        action = self.rollout_policy(obs, {})
         new_obs = obs.sample(s, action)
         new_s = new_obs.sample_belief()
-        return new_obs.score + self.discount * self.rollout(new_obs, new_s, depth + 1)
+        return new_obs.score() + self.discount * self.rollout(new_obs, new_s, depth + 1)
 
 
 class SearchTree:
-    def __init__(self, belief=set(), action=None, visit=0, value=0, action=None):
+    def __init__(self, belief=set(), action=None, visit=0, value=0):
         self.belief = belief
         self.visit = visit
         self.value = value

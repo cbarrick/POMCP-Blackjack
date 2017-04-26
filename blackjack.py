@@ -51,8 +51,6 @@ import random
 import numpy as np
 import logging
 
-from agents import dealer_agent
-
 logger = logging.getLogger(__name__)
 
 class Action(Enum):
@@ -89,7 +87,7 @@ class Shoe:
 
     def sample(self):
         assert len(self) > 0, 'cannot sample from an empty shoe.'
-        i = np.random.choice(shoe._INDICIES, p=self.counts/np.sum(self.counts))
+        i = np.random.choice(Shoe._INDICIES, p=self.counts/np.sum(self.counts))
         return i + 1
 
     def draw(self):
@@ -133,6 +131,7 @@ class State:
         s = copy(self)
         s.shoe = deepcopy(self.shoe, memo)
         s.hands = {agent:deepcopy(hand, memo) for agent, hand in self.hands.items()}
+        s.stand = {agent:deepcopy(stand, memo) for agent, stand in self.stand.items()}
         return s
 
     def actions(self, agent):
@@ -237,7 +236,7 @@ class Observation:
         return obs
 
     def sample_belief(self):
-        return obs._state.shoe.sample()
+        return self._state.shoe.sample()
 
     def score(self):
         '''Returns the score of the agent's hand.'''
