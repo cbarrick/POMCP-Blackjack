@@ -172,7 +172,10 @@ class State:
 
     def get_observation(self, agent, is_dealer):
         '''Returns the observation for the given agent.'''
-        return Observation(self, agent, is_dealer)
+        if is_dealer:
+            return Observation(self, agent, None)
+        else:
+            return Observation(self, agent, self.hidden_card())
 
     def actions(self, agent):
         '''Returns the set of valid actions for the given agent.'''
@@ -241,19 +244,22 @@ class Observation:
     this state is considered to be cheating.
     '''
 
-    def __init__(self, state, agent, is_dealer):
+    def __init__(self, state, agent, hidden_card=None):
         '''Construct an observation of the given state for some agent.'''
-        hidden_card = state.hidden_card()
-        if not is_dealer:
+        if hidden_card is not None:
             state = copy(state)
             state.shoe = state.shoe.replace(hidden_card)
 
         self._state = state
         self.agent = agent
 
+    def __eq__(self, other):
+        return np.array_equal(self._state.shoe, other._state.shoe)
+
     def sample_state(self):
         '''Sample possible future state from this observation.'''
-        return SampleState.from_observation(self)
+        state = copy(self._state)
+        return SampleState(state, self.agent)
 
     def actions(self):
         '''Returns a set of valid actions.'''
@@ -285,7 +291,7 @@ class SampleState:
 
     The API is mostly like State, but oriented aound a fixed agent.
     '''
-    def __init__(self, state, hidden_card, agent):
+    def __init__(self, state, agent):
         state = copy(state)
         hidden_card, state.shoe = state.shoe.sample()
 
@@ -293,17 +299,14 @@ class SampleState:
         self.hidden_card = hidden_card
         self.agent = agent
 
-    @classmethod
-    def from_observation(cls, obs):
-        '''Construct a belief state from an observation.'''
-        state = copy(obs._state)
-        hidden_card, state.shoe = state.shoe.sample()
-        return cls(state, hidden_card, obs.agent)
+    def get_observation(self):
+        '''Returns the observation from which the sample state is drawn.'''
+        return Observation(self._state, self.agent, self.hidden_card)
 
     def sample(self, action):
         '''Sample a possible future belief state.'''
         next_state = self._state.sample(self.agent, action)
-        return SampleState(next_state, self.hidden_card, self.agent)
+        return SampleState(next_state, self.agent)
 
     def actions(self):
         '''Returns a set of valid actions.'''
@@ -347,7 +350,12 @@ class Agent:
 class RandomAgent(Agent):
     '''An agent which behaves randomly.'''
     def policy(self, obs, ctx):
-        return random.choice(obs.actions())
+        actions = obs.actions()
+        action = random.choice(actions)
+        return action
+
+    def __str__(self):
+        return "Random"
 
 
 class DealerAgent(Agent):
@@ -371,7 +379,7 @@ class DealerAgent(Agent):
 
 
 class Simulator:
-    def __init__(self, *players, dealer=DealerAgent(), n_decks=2, cut=0.5):
+    def __init__(self, *players, dealer=DealerAgent(), n_decks=4, cut=0.5):
         '''Constructs a new Simulator.
 
         Args:

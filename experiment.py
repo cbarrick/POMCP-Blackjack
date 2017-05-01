@@ -3,12 +3,17 @@ import blackjack
 
 N = 1000
 
-agent = pomcp.POMCP()
+pomcp_agent = pomcp.POMCP()
+a1 = blackjack.RandomAgent()
+a2 = blackjack.DealerAgent(n=16)
+a3 = blackjack.DealerAgent(n=17)
+a4 = blackjack.DealerAgent(n=18)
+agents = [a1, a2, pomcp_agent, a3, a4]
 dealer = blackjack.DealerAgent()
-game = blackjack.Simulator(agent, dealer=dealer)
+game = blackjack.Simulator(*agents, dealer=dealer, n_decks=4)
 outcomes = game.run(N)
 
-pomcp_scores = outcomes[agent]
+pomcp_scores = outcomes[pomcp_agent]
 dealer_scores = outcomes[dealer]
 
 wins = pomcp_scores > dealer_scores
