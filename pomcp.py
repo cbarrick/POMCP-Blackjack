@@ -10,11 +10,12 @@ class POMCP(Agent):
     SearchTree = class for maintaining search
     '''
 
-    def __init__(self, discount=0.9, depth=0, epsilon=1e-7, explore=0):
+    def __init__(self, discount=0.9, depth=0, epsilon=1e-7, explore=11, n_particles=100):
         self.discount = discount
         self.depth = depth
         self.epsilon = epsilon
         self.explore = explore
+        self.n_particles = n_particles
         self.rollout_policy = DealerAgent()
 
     def __str__(self):
@@ -27,7 +28,7 @@ class POMCP(Agent):
             tree = SearchTree()
             ctx['pomcp_root'] = tree
 
-        for i in range(26):
+        for i in range(self.n_particles):
             if empty:
                 bel = obs.sample_belief()
                 tree.belief.add(obs.sample_belief())
