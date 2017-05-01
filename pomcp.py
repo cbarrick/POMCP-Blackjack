@@ -30,11 +30,10 @@ class POMCP(Agent):
 
         for i in range(self.n_particles):
             if empty:
-                bel = obs.sample_belief()
-                tree.belief.append(obs.sample_belief())
+                s = obs.sample_state()
             else:
-                bel = random.sample(tree.belief, 1)[0]
-            self.simulate(bel, tree, 0)
+                s = random.sample(tree.belief, 1)[0]
+            self.simulate(s, tree, 0)
 
         actions = obs.actions()
         children = filter(lambda child: child.action in actions, tree.children)
@@ -42,35 +41,35 @@ class POMCP(Agent):
         ctx['pomcp_root'] = child
         return child.action
 
-    def simulate(self, bel, tree, depth):
+    def simulate(self, s, tree, depth):
         if self.discount**depth < self.epsilon:
             return 0
         if len(tree.children) == 0:
             tree.expand()
-            return self.rollout(bel, depth)
-        actions = bel.actions()
+            return self.rollout(s, depth)
+        actions = s.actions()
         if len(actions) is 0:
             return 0
         children = filter(lambda child: child.action in actions, tree.children)
         child = max(children, key=lambda child: child.value + self.explore * tree.ucb(child))
         action = child.action
 
-        new_bel = bel.sample(action)
-        reward = new_bel.score() + self.discount * self.simulate(new_bel, child, depth + 1)
-        tree.belief.append(bel)
+        new_s = s.sample(action)
+        reward = new_s.score() + self.discount * self.simulate(new_s, child, depth + 1)
+        tree.belief.append(s)
         tree.visit += 1
         child.visit += 1
         child.value += (reward - child.value) / child.visit
         return reward
 
-    def rollout(self, bel, depth):
+    def rollout(self, s, depth):
         if self.discount**depth < self.epsilon:
             return 0
-        if len(bel.actions()) == 0:
+        if len(s.actions()) == 0:
             return 0
-        action = self.rollout_policy.policy(bel, {})
-        new_bel = bel.sample(action)
-        return new_bel.score() + self.discount * self.rollout(new_bel, depth + 1)
+        action = self.rollout_policy.policy(s, {})
+        new_s = s.sample(action)
+        return new_s.score() + self.discount * self.rollout(new_s, depth + 1)
 
 
 class SearchTree:

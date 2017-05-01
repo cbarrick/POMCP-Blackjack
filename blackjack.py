@@ -251,9 +251,9 @@ class Observation:
         self._state = state
         self.agent = agent
 
-    def sample_belief(self):
-        '''Sample a belief state from this observation.'''
-        return Belief.from_observation(self)
+    def sample_state(self):
+        '''Sample possible future state from this observation.'''
+        return SampleState.from_observation(self)
 
     def actions(self):
         '''Returns a set of valid actions.'''
@@ -280,7 +280,11 @@ class Observation:
         return self._state.score_soft_busted(self.agent)
 
 
-class Belief:
+class SampleState:
+    '''A sampled state.
+
+    The API is mostly like State, but oriented aound a fixed agent.
+    '''
     def __init__(self, state, hidden_card, agent):
         state = copy(state)
         hidden_card, state.shoe = state.shoe.sample()
@@ -299,7 +303,7 @@ class Belief:
     def sample(self, action):
         '''Sample a possible future belief state.'''
         next_state = self._state.sample(self.agent, action)
-        return Belief(next_state, self.hidden_card, self.agent)
+        return SampleState(next_state, self.hidden_card, self.agent)
 
     def actions(self):
         '''Returns a set of valid actions.'''
