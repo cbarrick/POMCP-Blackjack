@@ -100,8 +100,10 @@ class Shoe:
 
     def replace(self, card):
         '''Replace a card back into the shoe at a random position.'''
+
         i = card - 1
         count = self.counts[i]
+
         assert count <= 4 * self.n_decks, f'cannot have more than {count} cards of value {card}.'
         self.counts[i] = count + 1
 
