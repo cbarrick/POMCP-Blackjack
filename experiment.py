@@ -3,4 +3,5 @@ import blackjack
 
 agent = pomcp.POMCP()
 game = blackjack.Simulator(agent)
-print(game.run(10))
+stats = game.run(10)
+print(stats)

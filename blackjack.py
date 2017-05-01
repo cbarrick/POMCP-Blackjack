@@ -54,6 +54,7 @@ import random
 
 logger = logging.getLogger(__name__)
 
+
 class Action(IntEnum):
     '''The possible actions in a game of Blackjack.
 
@@ -82,126 +83,153 @@ class Shoe:
         '''The length of a shoe is the number of cards.'''
         return np.sum(self.counts)
 
-    def reshuffle(self):
-        '''Refill and shuffle the shoe.'''
-        self.__init__(self.n_decks)
-
     def sample(self):
         assert len(self) > 0, 'cannot sample from an empty shoe.'
         i = np.random.choice(Shoe._INDICIES, p=self.counts/np.sum(self.counts))
-        return i + 1
-
-    def draw(self):
-        '''Draw a random card from the shoe.'''
-        card = self.sample()
-        i = card - 1
-        self.counts[i] -= 1
-        return card
+        new_shoe = deepcopy(self)
+        new_shoe.counts[i] -= 1
+        card = i + 1
+        return card, new_shoe
 
     def replace(self, card):
         '''Replace a card back into the shoe at a random position.'''
         i = card - 1
         count = self.counts[i]
-        assert count <= 4 * self.n_decks, f'cannot have more than {count} cards of value {card}.'
-        self.counts[i] = count + 1
+        max_count = 4 * self.n_decks
+        assert count <= max_count, f'cannot have more than {max_count} cards of value {card}.'
+        new_shoe = deepcopy(self)
+        new_shoe.counts[i] = count + 1
+        return new_shoe
 
-    def take(self, card):
-        i = card - 1
-        assert self.counts[i] > 0, f'cannot take card {card} with count {self.counts[i]}'
-        self.counts[i] -= 1
-        return i + 1
 
 class State:
     '''A state of a round of Blackjack.'''
 
-    def __init__(self, shoe, hands, dealer):
+    def __init__(self, shoe, hands, stand):
         '''Create a new state from a given shoe and hands dict.
 
         Args:
-            shoe: The shoe to draw from when sampling the next state.
-            hands: A dict mapping Agent instances to lists of cards.
-            dealer: The agent to designate as the dealer.
+            shoe:
+                The shoe to draw from when sampling the next state.
+            hands:
+                A list of hands for the agents. Hands are represented as nested
+                tuples (cons cells). The last hand belongs to the dealer.
+            stand:
+                A list of boolean states for the agents. True means they stand.
         '''
         self.shoe = shoe
-        self.hands = hands
-        self.dealer = dealer
-        self.stand = {agent:False for agent in hands.keys()}
+        self.hands = tuple(hands)
+        self.stand = tuple(stand or self.busted(j) for j, stand in enumerate(stand))
+        self.dealer = len(self.hands) - 1
 
-    def __deepcopy__(self, memo):
-        '''Returns a deepcopy of this State.'''
-        s = copy(self)
-        s.shoe = deepcopy(self.shoe, memo)
-        s.hands = {agent:deepcopy(hand, memo) for agent, hand in self.hands.items()}
-        s.stand = {agent:deepcopy(stand, memo) for agent, stand in self.stand.items()}
-        return s
+    @classmethod
+    def start_state(cls, shoe, n_agents):
+        '''Constructs an initial state starting from the shoe.
 
-    def actions(self, agent):
-        '''Returns the set of valid actions for the given agent.'''
-        return tuple(Action) if not self.stand[agent] else []
+        Args:
+            shoe: The shoe from which to draw the initial hands.
+            n_agents: The number of agents in the game.
+        '''
+        hands = []
+        for i in range(n_agents):
+            a, shoe = shoe.sample()
+            b, shoe = shoe.sample()
+            hand = (a, (b, ()))
+            hands.append(hand)
+
+        hands = tuple(hands)
+        stand = tuple(False for i in range(n_agents))
+        return cls(shoe, hands, stand)
+
+    def hidden_card(self):
+        '''Returns the dealer's hidden card.'''
+        hand = self.hands[self.dealer]
+        while hand is not ():
+            card, hand = hand
+        return card
 
     def sample(self, agent, action):
-        '''Samples a new state from this one given an action taken by an agent.'''
-        s = deepcopy(self)
-        s.next(agent, action)
-        return s
+        '''Sample a new state from this state by commiting an action as a player.'''
 
-    def next(self, agent, action):
-        '''Progress this state to the next by commiting an action as a player.'''
         assert isinstance(action, Action), 'action must be an instance of blackjack.Action'
         assert not self.stand[agent], 'cannot perform action after stand or bust'
 
+        card, shoe = self.shoe.sample()
+
         if action is Action.HIT or action is Action.DOUBLE:
-            card = self.shoe.draw()
-            self.hands[agent].append(card)
-            self.stand[agent] = self.busted(agent)
+            new_hand = (card, self.hands[agent])
+        else:
+            new_hand = self.hands[agent]
 
         if action is Action.STAND or action is Action.DOUBLE:
-            self.stand[agent] = True
+            new_stand = True
+        else:
+            new_stand = self.stand[agent]
+
+        hands = (new_hand if i is agent else hand for i, hand in enumerate(self.hands))
+        stand = (new_stand if i is agent else stand for i, stand in enumerate(self.stand))
+        return State(shoe, hands, stand)
+
+    def get_observation(self, agent, is_dealer):
+        '''Returns the observation for the given agent.'''
+        return Observation(self, agent, is_dealer)
+
+    def actions(self, agent):
+        '''Returns the set of valid actions for the given agent.'''
+        return tuple(Action) if not self.stand[agent] else ()
 
     def score(self, agent):
         '''Returns the score of an agent's hand.'''
-        score, _ = self.score_soft(agent)
+        score, _, _ = self.score_soft_busted(agent)
         return score
 
     def busted(self, agent):
         '''Returns True if an agent is busted.'''
-        return self.score(agent) == 0
+        _, _, busted = self.score_soft_busted(agent)
+        return busted
 
     def soft(self, agent):
         '''Returns True if the agent's score is soft, i.e. made with an ace as 11.'''
-        _, soft = self.score_soft(agent)
+        _, soft, _ = self.score_soft_busted(agent)
         return soft
 
-    def score_soft(self, agent):
+    def score_soft_busted(self, agent):
         '''Computes the score and softness of an agent's hand.
 
         The score is the value of the hand. A hand is soft if it contains an
         ace being scored as an 11.
 
-        The return value is a pair `(score, soft)` where `score` is the value
-        of the hand and `soft` is a boolean which is True for soft scores.
+        Returns `(score, soft, busted)` where
+            - `score` is the score of the agents hand, and
+            - `soft` is True if the score is soft.
+            - `busted` is True if the agent has busted
         '''
         aces = 0
         score = 0
-        for card in self.hands[agent]:
+
+        hand = self.hands[agent]
+        while hand is not ():
+            card, hand = hand
             if card is 1:
-                score += 11
                 aces += 1
+                score += 11
+            elif card > 10:
+                score += 10
             else:
-                score += min(card, 10)
+                score += card
+
         while score > 21 and aces > 0:
             score -= 10
-            aces -= 1
 
-        if score == 21 and len(self.hands[agent]) == 2:
-            # blackjack :)
-            return 22, True
+        soft = (aces > 0)
+        if soft and score is 21:
+            score = 22
         elif score > 21:
-            # bust :(
-            return 0, False
-        else:
-            # normal hand
-            return score, aces > 0
+            score = 0
+        busted = score == 0
+
+        return score, soft, busted
+
 
 class Observation:
     '''An observation seen by an agent during a round of Blackjack.
@@ -213,31 +241,23 @@ class Observation:
     this state is considered to be cheating.
     '''
 
-    def __init__(self, state, agent):
+    def __init__(self, state, agent, is_dealer):
         '''Construct an observation of the given state for some agent.'''
-        self._state = deepcopy(state)
+        hidden_card = state.hidden_card()
+        if not is_dealer:
+            state = copy(state)
+            state.shoe = state.shoe.replace(hidden_card)
+
+        self._state = state
         self.agent = agent
 
-        dealer = self._state.dealer
-        hidden_card = self._state.hands[dealer][0]
-        self._state.shoe.replace(hidden_card)
+    def sample_belief(self):
+        '''Sample a belief state from this observation.'''
+        return Belief.from_observation(self)
 
     def actions(self):
         '''Returns a set of valid actions.'''
         return self._state.actions(self.agent)
-
-    def sample(self, hidden_belief, action):
-        '''Samples a new observation from this one given some belief about the
-        hidden card and an action.
-        '''
-        obs = copy(self)
-        obs._state.shoe.take(hidden_belief)
-        obs._state = self._state.sample(self.agent, action)
-        obs._state.shoe.replace(hidden_belief)
-        return obs
-
-    def sample_belief(self):
-        return self._state.shoe.sample()
 
     def score(self):
         '''Returns the score of the agent's hand.'''
@@ -251,12 +271,59 @@ class Observation:
         '''Returns True if the agent's score is soft, i.e. made with an ace as 11.'''
         return self._state.soft(self.agent)
 
-    def score_soft(self):
+    def score_soft_busted(self):
+        '''Returns `(score, soft, busted)` where
+            - `score` is the score of the agents hand, and
+            - `soft` is True if the score is soft.
+            - `busted` is True if the agent has busted
+        '''
+        return self._state.score_soft_busted(self.agent)
+
+
+class Belief:
+    def __init__(self, state, hidden_card, agent):
+        state = copy(state)
+        hidden_card, state.shoe = state.shoe.sample()
+
+        self._state = state
+        self.hidden_card = hidden_card
+        self.agent = agent
+
+    @classmethod
+    def from_observation(cls, obs):
+        '''Construct a belief state from an observation.'''
+        state = copy(obs._state)
+        hidden_card, state.shoe = state.shoe.sample()
+        return cls(state, hidden_card, obs.agent)
+
+    def sample(self, action):
+        '''Sample a possible future belief state.'''
+        next_state = self._state.sample(self.agent, action)
+        return Belief(next_state, self.hidden_card, self.agent)
+
+    def actions(self):
+        '''Returns a set of valid actions.'''
+        return self._state.actions(self.agent)
+
+    def score(self):
+        '''Returns the score of the agent's hand.'''
+        return self._state.score(self.agent)
+
+    def busted(self):
+        '''Returns True if the agent has busted.'''
+        return self._state.busted(self.agent)
+
+    def soft(self):
+        '''Returns True if the agent's score is soft, i.e. made with an ace as 11.'''
+        return self._state.soft(self.agent)
+
+    def score_soft_busted(self):
         '''Returns `(score, soft)` where
             - `score` is the score of the agents hand, and
             - `soft` is True if the score is soft.
         '''
-        return self._state.score_soft(self.agent)
+        return self._state.score_soft_busted(self.agent)
+
 
 class Agent:
     '''A base class for agents.'''
@@ -276,10 +343,12 @@ class Agent:
         '''Agents can be called just like plain policy functions.'''
         return self.policy(obs, ctx)
 
+
 class RandomAgent(Agent):
     '''An agent which behaves randomly.'''
     def policy(self, obs, ctx):
         return random.choice(obs.actions())
+
 
 class DealerAgent(Agent):
     '''An agent which plays like a casino dealer.'''
@@ -291,12 +360,15 @@ class DealerAgent(Agent):
         return f"Dealer {self.n}"
 
     def policy(self, obs, ctx):
-        score, soft = obs.score_soft()
-        if self.n < score:
+        score, soft, busted = obs.score_soft_busted()
+        if score < self.n:
             return Action.HIT
+        elif busted:
+            return Action.STAND
         elif soft and score == self.n:
             return Action.HIT
         return Action.STAND
+
 
 class Simulator:
     def __init__(self, *players, dealer=DealerAgent(), n_decks=2, cut=0.5):
@@ -312,52 +384,32 @@ class Simulator:
         assert 0 <= cut and cut < 1, 'cut must be between 0 and 1'
         self.dealer = dealer if isinstance(dealer, Agent) else Agent.from_fn(dealer)
         self.players = tuple(a if isinstance(a, Agent) else Agent.from_fn(a) for a in players)
-        self.shoe = Shoe(n_decks)
+        self.start_shoe = Shoe(n_decks)
         self.n_decks = n_decks
         self.cut = cut
 
     def run(self, n_rounds):
         '''Execute the simulation for some number of rounds and return a summary.'''
-        # The order of play is given by the order of the players, followed by the dealer.
-        players = self.players + (self.dealer,)
+        agents = self.players + (self.dealer,)
+        scores = np.zeros((n_rounds, len(agents)), dtype=int)
+        state = State.start_state(self.start_shoe, len(agents))
 
-        # Keep track of win statistics during the simulation.
-        wins = np.zeros((n_rounds, len(players)), dtype=bool)
         for i in range(n_rounds):
-            logger.info(f'round {i}')
-
-            # Reshuffle if below the cut
-            if len(self.shoe) < 13 * self.n_decks * self.cut:
-                logger.info('reshuffling')
-                self.shoe.reshuffle()
-
-            # Draw the hands and create a state for this round.
-            hands = {}
-            for agent in players:
-                hands[agent] = [self.shoe.draw(), self.shoe.draw()]
-            state = State(self.shoe, hands, self.dealer)
+            # Start state:
+            # Reshuffle if below the cut, i.e. create a start state from the start shoe.
+            # Otherwise create the start state reusing the previous shoe.
+            if len(state.shoe) < 13 * self.n_decks * self.cut:
+                state = State.start_state(self.start_shoe, len(agents))
+            else:
+                state = State.start_state(state.shoe, len(agents))
 
             # Let each player play until they stand or bust.
-            for agent in players:
-                logger.info(f'{agent}\'s turn')
+            for j, agent in enumerate(agents):
                 ctx = {}
-                while state.stand[agent] == False:
-                    obs = Observation(state, agent)
+                while state.stand[j] == False:
+                    obs = state.get_observation(j, agent is self.dealer)
                     action = agent(obs, ctx)
-                    state.next(agent, action)
+                    state = state.sample(j, action)
+                scores[i,j] = state.score(j)
 
-            # Compute the winners of this round and update the statistics
-            winners = None
-            best_score = -1
-            for agent in players:
-                score = state.score(agent)
-                if score > best_score:
-                    winners = [agent]
-                    best_score = score
-                elif score == best_score:
-                    winners.append(agent)
-            for agent in winners:
-                j = players.index(agent)
-                wins[i,j] = True
-
-        return pd.DataFrame(wins, columns=[str(player) for player in players])
+        return pd.DataFrame(scores, columns=[str(agent) for agent in agents])
