@@ -65,7 +65,7 @@ class Action(IntEnum):
     '''
     STAND = 1
     HIT = 2
-    DOUBLE = 3
+    # DOUBLE = 3
     # SPLIT = 4
 
 class Shoe:
@@ -156,12 +156,12 @@ class State:
 
         card, shoe = self.shoe.sample()
 
-        if action is Action.HIT or action is Action.DOUBLE:
+        if action is Action.HIT:
             new_hand = (card, self.hands[agent])
         else:
             new_hand = self.hands[agent]
 
-        if action is Action.STAND or action is Action.DOUBLE:
+        if action is Action.STAND:
             new_stand = True
         else:
             new_stand = self.stand[agent]
@@ -339,10 +339,6 @@ class Agent:
     def policy(self, obs, ctx):
         raise NotImplementedError
 
-    def __call__(self, obs, ctx):
-        '''Agents can be called just like plain policy functions.'''
-        return self.policy(obs, ctx)
-
 
 class RandomAgent(Agent):
     '''An agent which behaves randomly.'''
@@ -408,8 +404,8 @@ class Simulator:
                 ctx = {}
                 while state.stand[j] == False:
                     obs = state.get_observation(j, agent is self.dealer)
-                    action = agent(obs, ctx)
+                    action = agent.policy(obs, ctx)
                     state = state.sample(j, action)
                 scores[i,j] = state.score(j)
 
-        return pd.DataFrame(scores, columns=[str(agent) for agent in agents])
+        return pd.DataFrame(scores, columns=[agent for agent in agents])
