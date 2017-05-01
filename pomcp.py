@@ -21,14 +21,18 @@ class POMCP(Agent):
         return "POMCP"
 
     def policy(self, obs, ctx):
-        for i in range(100):
-            tree = ctx.get('pomcp_root')
-            if tree is None:
-                tree = SearchTree(belief={obs.sample_belief()})
-                ctx['pomcp_root'] = tree
-            if len(tree.belief) == 0:
+        tree = ctx.get('pomcp_root')
+        empty = tree is None
+        if empty:
+            tree = SearchTree()
+            ctx['pomcp_root'] = tree
+
+        for i in range(26):
+            if empty:
+                bel = obs.sample_belief()
                 tree.belief.add(obs.sample_belief())
-            bel = random.sample(tree.belief, 1)[0]
+            else:
+                bel = random.sample(tree.belief, 1)[0]
             self.simulate(bel, tree, 0)
 
         actions = obs.actions()
