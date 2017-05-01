@@ -31,7 +31,7 @@ class POMCP(Agent):
         for i in range(self.n_particles):
             if empty:
                 bel = obs.sample_belief()
-                tree.belief.add(obs.sample_belief())
+                tree.belief.append(obs.sample_belief())
             else:
                 bel = random.sample(tree.belief, 1)[0]
             self.simulate(bel, tree, 0)
@@ -57,7 +57,7 @@ class POMCP(Agent):
 
         new_bel = bel.sample(action)
         reward = new_bel.score() + self.discount * self.simulate(new_bel, child, depth + 1)
-        tree.belief.add(bel)
+        tree.belief.append(bel)
         tree.visit += 1
         child.visit += 1
         child.value += (reward - child.value) / child.visit
@@ -68,13 +68,13 @@ class POMCP(Agent):
             return 0
         if len(bel.actions()) == 0:
             return 0
-        action = self.rollout_policy(bel, {})
+        action = self.rollout_policy.policy(bel, {})
         new_bel = bel.sample(action)
         return new_bel.score() + self.discount * self.rollout(new_bel, depth + 1)
 
 
 class SearchTree:
-    def __init__(self, belief=set(), action=None, visit=1, value=0):
+    def __init__(self, belief=[], action=None, visit=1, value=0):
         self.belief = belief
         self.visit = visit
         self.value = value
