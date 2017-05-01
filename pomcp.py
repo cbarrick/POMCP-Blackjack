@@ -21,16 +21,18 @@ class POMCP(Agent):
         return "POMCP"
 
     def policy(self, obs, ctx):
-        tree = ctx.get('pomcp_root')
-        if tree is None:
-            tree = SearchTree(belief={obs.sample_belief()})
-            ctx['pomcp_root'] = tree
-        if len(tree.belief) == 0:
-            tree.belief.add(obs.sample_belief())
-        s = random.sample(tree.belief, 1)[0]
-        self.simulate(obs, s, tree, 0)
-        actions = obs.actions()
+        for i in range(100):
+            tree = ctx.get('pomcp_root')
+            if tree is None:
+                tree = SearchTree(belief={obs.sample_belief()})
+                ctx['pomcp_root'] = tree
+            if len(tree.belief) == 0:
+                tree.belief.add(obs.sample_belief())
+            s = random.sample(tree.belief, 1)[0]
+            self.simulate(obs, s, tree, 0)
+            print(f'DONE {i}')
 
+        actions = obs.actions()
         children = filter(lambda child: child.action in actions, tree.children)
         child = max(children, key=lambda child: child.value)
         ctx['pomcp_root'] = child
@@ -43,13 +45,15 @@ class POMCP(Agent):
             tree.expand(obs, s)
             return self.rollout(obs, s, depth)
         actions = obs.actions()
+        if len(actions) is 0:
+            return 0
         children = filter(lambda child: child.action in actions, tree.children)
         child = max(children, key=lambda child: child.value + self.explore * tree.ucb(child))
         action = child.action
 
         new_obs = obs.sample(s, action)
         new_s = new_obs.sample_belief()
-        reward = new_obs.score() + self.discount * simulate(new_obs, new_s, child, depth + 1)
+        reward = new_obs.score() + self.discount * self.simulate(new_obs, new_s, child, depth + 1)
         tree.belief.add(s)
         tree.visit += 1
         child.visit += 1
@@ -68,7 +72,7 @@ class POMCP(Agent):
 
 
 class SearchTree:
-    def __init__(self, belief=set(), action=None, visit=0, value=0):
+    def __init__(self, belief=set(), action=None, visit=1, value=0):
         self.belief = belief
         self.visit = visit
         self.value = value
@@ -80,4 +84,6 @@ class SearchTree:
             self.children.add(SearchTree(action=a))
 
     def ucb(self, child):
-        return math.sqrt(math.log(self.visit, len(children)) / child.visit)
+        log = math.log(self.visit, len(self.children))
+        div = log / child.visit
+        return math.sqrt(div)
