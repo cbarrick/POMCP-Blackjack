@@ -10,7 +10,7 @@ class POMCP(Agent):
     SearchTree = class for maintaining search
     '''
 
-    def __init__(self, discount=0.9, depth=0, epsilon=1e-7, explore=11, n_particles=100):
+    def __init__(self, discount=0.9, depth=0, epsilon=1e-7, explore=6, n_particles=100):
         self.discount = discount
         self.depth = depth
         self.epsilon = epsilon

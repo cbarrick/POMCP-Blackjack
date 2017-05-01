@@ -1,7 +1,7 @@
 import pomcp
 import blackjack
 
-N = 100
+N = 1000
 
 agent = pomcp.POMCP()
 dealer = blackjack.DealerAgent()
@@ -22,9 +22,9 @@ n_draws = sum(draws)
 pomcp_scores.apply(lambda score: score > 0)
 
 print('# Stats:')
-print(f'Win %:   {n_wins / N:0.2%}')
-print(f'Loss %:  {n_losses / N:0.2%}')
-print(f'Draw %:  {n_draws / N:0.2%}')
+print(f'Win %:   {n_wins / N:0.1%}')
+print(f'Loss %:  {n_losses / N:0.1%}')
+print(f'Draw %:  {n_draws / N:0.1%}')
 print()
 
 print('# Raw Outcomes:')
