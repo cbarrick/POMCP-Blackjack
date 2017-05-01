@@ -46,7 +46,7 @@ TODO: write this up
 '''
 
 from copy import copy, deepcopy
-from enum import Enum
+from enum import IntEnum
 import logging
 import numpy as np
 import pandas as pd
@@ -54,7 +54,7 @@ import random
 
 logger = logging.getLogger(__name__)
 
-class Action(Enum):
+class Action(IntEnum):
     '''The possible actions in a game of Blackjack.
 
     Enum:
@@ -107,7 +107,7 @@ class Shoe:
 
     def take(self, card):
         i = card - 1
-        assert self.counts[i] > 0, 'cannot take card {card} with count {self.counts[0]}'
+        assert self.counts[i] > 0, f'cannot take card {card} with count {self.counts[i]}'
         self.counts[i] -= 1
         return i + 1
 
