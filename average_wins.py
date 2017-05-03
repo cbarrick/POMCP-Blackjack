@@ -11,8 +11,8 @@ a4 = blackjack.DealerAgent(n=18)
 agents = [a1, a2, pomcp_agent, a3, a4]
 dealer = blackjack.DealerAgent()
 
-N = [10,100,1000,10000,100000]
-n_decks = [5,6,7,8,9,10]
+N = [10,100,1000,10000]
+n_decks = [6,7,8,9,10]
 columns = ['N','Decks','POMCP','Random','Agent16','Agent17','Agent18']
 trial_num=[]
 deck_num=[]
