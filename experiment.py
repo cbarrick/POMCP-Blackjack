@@ -1,6 +1,7 @@
 import pomcp
 import blackjack
 
+<<<<<<< HEAD
 N = 10
 
 pomcp_agent = pomcp.POMCP()
@@ -35,3 +36,11 @@ print()
 
 print('# Raw Outcomes:')
 print(outcomes)
+=======
+agent_pomcp = pomcp.POMCP()
+game_p = blackjack.Simulator(agent_pomcp, n_decks=3)
+print(game_p.run(10))
+#get wins
+#get draws
+#get losses
+>>>>>>> origin/raj3
