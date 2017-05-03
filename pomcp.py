@@ -41,7 +41,7 @@ class POMCP(Agent):
         self.n_particles = n_particles
         self.reinvigoration = reinvigoration
         self.rollout_policy = DealerAgent()
-        self.max_iter = max_iter
+
 
     def __str__(self):
         return "POMCP"
