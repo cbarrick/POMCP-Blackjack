@@ -1,3 +1,4 @@
+
 import numpy as np
 from blackjack import Agent, Action, DealerAgent
 import random
@@ -18,6 +19,7 @@ class Particle:
         return cls(s.get_observation(), s)
 
 
+
 class POMCP(Agent):
     '''POMCP algorithm
 
@@ -31,6 +33,7 @@ class POMCP(Agent):
                  explore=7,
                  n_particles=128,
                  reinvigoration=16):
+
         self.discount = discount
         self.depth = depth
         self.epsilon = epsilon
@@ -39,11 +42,14 @@ class POMCP(Agent):
         self.reinvigoration = reinvigoration
         self.rollout_policy = DealerAgent()
 
+
     def __str__(self):
         return "POMCP"
 
+
     def policy(self, obs, ctx):
         tree = ctx.get('pomcp_root')
+
         at_root = tree is None
 
         if at_root:
@@ -70,11 +76,13 @@ class POMCP(Agent):
         if self.discount**depth < self.epsilon:
             return 0
         if len(tree.children) == 0:
+
             tree.expand()
             return self.rollout(part, depth)
         actions = part.s.actions()
         if len(actions) is 0:
             return 0
+
         children = filter(lambda child: child.action in actions, tree.children)
         child = max(children, key=lambda child: child.value + self.explore * tree.ucb(child))
         action = child.action
@@ -83,6 +91,7 @@ class POMCP(Agent):
         new_part = Particle.from_s(new_s)
         reward = new_s.score() + self.discount * self.simulate(new_part, child, depth + 1)
         tree.particles.append(new_part)
+
         tree.visit += 1
         child.visit += 1
         child.value += (reward - child.value) / child.visit

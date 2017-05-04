@@ -93,13 +93,16 @@ class Shoe:
 
     def replace(self, card):
         '''Replace a card back into the shoe at a random position.'''
+
         i = card - 1
         count = self.counts[i]
+
         max_count = 4 * self.n_decks
         assert count <= max_count, f'cannot have more than {max_count} cards of value {card}.'
         new_shoe = deepcopy(self)
         new_shoe.counts[i] = count + 1
         return new_shoe
+
 
 
 class State:
